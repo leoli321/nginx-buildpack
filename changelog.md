@@ -1,3 +1,20 @@
+## v0.6
+
+2017-05-18
+
+* Update zlib to 1.2.11
+* Add support for heroku-16
+
+## v0.5
+
+2017-01-05
+
+* Update Nginx to 1.11.8
+* Update PCRE to 8.39
+* Add zlib (1.2.10)
+* Add OpenSSL (1.0.2j)
+* Add module `ngx_http_ssl_module` to Nginx
+
 ## v0.4
 
 2012-05-13

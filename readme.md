@@ -1,6 +1,6 @@
 # Heroku Buildpack: NGINX
 
-Nginx-buildpack vendors NGINX inside a dyno and connects NGINX to an app server via UNIX domain sockets.
+NGINX-buildpack vendors NGINX inside a dyno and connects NGINX to an app server via UNIX domain sockets.
 
 ## Motivation
 
@@ -8,8 +8,16 @@ Some application servers (e.g. Ruby's Unicorn) halt progress when dealing with n
 
 ## Versions
 
-* Buildpack Version: 0.4
-* NGINX Version: 1.5.7
+* Buildpack Version: 0.6
+* NGINX version: 1.11.8
+* PCRE version: 8.39
+* zlib version: 1.2.11
+* OpenSSL version: 1.0.2j
+
+## Supported Heroku stacks
+
+* `cedar-14`
+* `heroku-16`
 
 ## Requirements
 
@@ -43,7 +51,7 @@ at=info method=GET path=/ host=salty-earth-7125.herokuapp.com request_id=e2c79e8
 
 ### Language/App Server Agnostic
 
-Nginx-buildpack provides a command named `bin/start-nginx` this command takes another command as an argument. You must pass your app server's startup command to `start-nginx`.
+NGINX-buildpack provides a command named `bin/start-nginx` this command takes another command as an argument. You must pass your app server's startup command to `start-nginx`.
 
 For example, to get NGINX and Unicorn up and running:
 
@@ -65,7 +73,7 @@ $ heroku config:set NGINX_WORKERS=8
 
 ### Customizable NGINX Config
 
-You can provide your own NGINX config by creating a file named `nginx.conf.erb` in the config directory of your app. Start by copying the buildpack's [default config file](https://github.com/ryandotsmith/nginx-buildpack/blob/master/config/nginx.conf.erb).
+You can provide your own NGINX config by creating a file named `nginx.conf.erb` in the config directory of your app. Start by copying the buildpack's [default config file](config/nginx.conf.erb).
 
 ### Customizable NGINX Compile Options
 
@@ -81,23 +89,25 @@ Here are 2 setup examples. One example for a new app, another for an existing ap
 
 ### Existing App
 
-Update Buildpacks
+Add Buildpack:
+
 ```bash
-$ heroku config:set BUILDPACK_URL=https://github.com/ddollar/heroku-buildpack-multi.git
-$ echo 'https://github.com/ryandotsmith/nginx-buildpack.git' >> .buildpacks
-$ echo 'https://codon-buildpacks.s3.amazonaws.com/buildpacks/heroku/ruby.tgz' >> .buildpacks
-$ git add .buildpacks
-$ git commit -m 'Add multi-buildpack'
+$ heroku buildpacks:add https://github.com/washos/nginx-buildpack --index 1 --app app_name
 ```
-Update Procfile:
+
+Update `Procfile`:
+
 ```
 web: bin/start-nginx bundle exec unicorn -c config/unicorn.rb
 ```
+
 ```bash
 $ git add Procfile
 $ git commit -m 'Update procfile for NGINX buildpack'
 ```
-Update Unicorn Config
+
+Update `config/unicorn.rb`:
+
 ```ruby
 require 'fileutils'
 listen '/tmp/nginx.socket'
@@ -105,11 +115,14 @@ before_fork do |server,worker|
 	FileUtils.touch('/tmp/app-initialized')
 end
 ```
+
 ```bash
 $ git add config/unicorn.rb
 $ git commit -m 'Update unicorn config to listen on NGINX socket.'
 ```
-Deploy Changes
+
+Deploy changes:
+
 ```bash
 $ git push heroku master
 ```
@@ -121,18 +134,21 @@ $ mkdir myapp; cd myapp
 $ git init
 ```
 
-**Gemfile**
+`Gemfile`:
+
 ```ruby
 source 'https://rubygems.org'
 gem 'unicorn'
 ```
 
-**config.ru**
+`config.ru`:
+
 ```ruby
-run Proc.new {[200,{'Content-Type' => 'text/plain'}, ["hello world"]]}
+run Proc.new {[200, {'Content-Type' => 'text/plain'}, ["hello world"]]}
 ```
 
-**config/unicorn.rb**
+`config/unicorn.rb`:
+
 ```ruby
 require 'fileutils'
 preload_app true
@@ -144,27 +160,61 @@ before_fork do |server,worker|
 	FileUtils.touch('/tmp/app-initialized')
 end
 ```
-Install Gems
+
+Install Gems:
+
 ```bash
 $ bundle install
 ```
-Create Procfile
+
+`Procfile`:
+
 ```
 web: bin/start-nginx bundle exec unicorn -c config/unicorn.rb
 ```
-Create & Push Heroku App:
+
+Create & push Heroku app:
+
 ```bash
-$ heroku create --buildpack https://github.com/ddollar/heroku-buildpack-multi.git
-$ echo 'https://codon-buildpacks.s3.amazonaws.com/buildpacks/heroku/ruby.tgz' >> .buildpacks
-$ echo 'https://github.com/ryandotsmith/nginx-buildpack.git' >> .buildpacks
+$ heroku create --stack cedar-14
+$ heroku buildpacks:add https://github.com/washos/nginx-buildpack --index 1 --app app_name
+$ heroku buildpacks:add heroku/ruby --index 2 --app app_name
 $ git add .
-$ git commit -am "init"
+$ git commit -am "First commit"
 $ git push heroku master
 $ heroku logs -t
 ```
-Visit App
+
+Visit app
+
 ```
 $ heroku open
+```
+
+## Compilation
+
+### `cedar-14`
+
+```
+[local ] $ docker run -i -t heroku/cedar:14 /bin/bash
+[local ] $ docker ps
+CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS               NAMES
+<container_id>      heroku/cedar:14     "/bin/bash"         7 seconds ago       Up 5 seconds                            jolly_bardeen
+[local ] $ docker cp scripts/build_nginx.sh <container_id>:/tmp/build_nginx.sh
+[docker] # sh /tmp/build_nginx.sh
+[local ] $ docker cp <container_id>:/tmp/nginx/sbin/nginx bin/nginx-cedar-14
+```
+
+### `heroku-16`
+
+```
+[local ] $ docker run -i -t heroku/heroku:16-build /bin/bash
+[local ] $ docker ps
+CONTAINER ID        IMAGE                    COMMAND             CREATED             STATUS              PORTS               NAMES
+<container_id>      heroku/heroku:16-build   "/bin/bash"         4 seconds ago       Up 3 seconds                            pedantic_yalow
+[local ] $ docker cp scripts/build_nginx.sh <container_id>:/tmp/build_nginx.sh
+[docker] # sh /tmp/build_nginx.sh
+[local ] $ docker cp <container_id>:/tmp/nginx/sbin/nginx bin/nginx-heroku-16
 ```
 
 ## License
